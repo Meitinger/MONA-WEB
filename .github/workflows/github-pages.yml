@@ -16,9 +16,9 @@ jobs:
           cache: npm
           cache-dependency-path: Web/package.json
 
-      - uses: mymindstorm/setup-emsdk@v9
+      - uses: mymindstorm/setup-emsdk@v10
         with:
-          version: 2.0.34
+          version: 1.40.1
           actions-cache-folder: emsdk-cache
 
       - run: emconfigure ./configure
