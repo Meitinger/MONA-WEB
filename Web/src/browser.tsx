@@ -30,11 +30,11 @@ const isInvalidName = (name: string) => name.length === 0 || name.includes('/');
 
 const getName = (path: string) => path.substring(path.lastIndexOf('/') + 1);
 
-const File = ({ path, readonly }: { path: string, readonly: boolean }) => {
+const File = ({ path, readOnly }: { path: string, readOnly: boolean }) => {
     const app = useContext(AppContext);
     const name = getName(path);
 
-    const openFile = () => app.openTab(path, readonly);
+    const openFile = () => app.openTab(path, readOnly);
 
     const deleteFile = async () => {
         if (await confirm(`Are you sure you want to delete the file '${path}'?`)) {
@@ -54,7 +54,7 @@ const File = ({ path, readonly }: { path: string, readonly: boolean }) => {
                 </button>
             </div>
             <div className="uk-width-auto">
-                {readonly ||
+                {readOnly ||
                     <button className="uk-button uk-button-small uk-button-danger uk-padding-remove" title="Delete File" onClick={deleteFile}>
                         <span data-uk-icon="close"></span>
                     </button>
@@ -64,7 +64,7 @@ const File = ({ path, readonly }: { path: string, readonly: boolean }) => {
     );
 }
 
-const Directory = ({ path, readonly }: { path: string, readonly: boolean }) => {
+const Directory = ({ path, readOnly }: { path: string, readOnly: boolean }) => {
     const app = useContext(AppContext);
     const isSpecial = MonaFileSystem.isSpecialDirectory(path);
     const [contents, setContents] = useState(null as MonaDirectoryContents | null | Error);
@@ -72,7 +72,7 @@ const Directory = ({ path, readonly }: { path: string, readonly: boolean }) => {
     const [newChildName, setNewChildName] = useState('');
 
     const name = getName(path);
-    const hasContent = contents && (contents instanceof Error || contents.directories.length > 0 || contents.files.length > 0 || !readonly);
+    const hasContent = contents && (contents instanceof Error || contents.directories.length > 0 || contents.files.length > 0 || !readOnly);
 
     useEffect(() => {
         MonaFileSystem.addDirectoryListener(path, setContents);
@@ -80,14 +80,14 @@ const Directory = ({ path, readonly }: { path: string, readonly: boolean }) => {
         return () => MonaFileSystem.removeDirectoryListener(path, setContents);
     }, [path]);
 
-    const toggleExpanded = () => setExpanded(!expanded);
+    const toggleExpanded = () => setExpanded(expanded => !expanded);
 
     const createFile = async () => {
         const childPath = `${path}/${newChildName}`;
         try { await MonaFileSystem.createFile(childPath); }
         catch (error) { return await alert(String(error)); }
         setNewChildName('');
-        app.openTab(childPath, readonly);
+        app.openTab(childPath, readOnly);
     }
 
     const createDirectory = async () => {
@@ -121,7 +121,7 @@ const Directory = ({ path, readonly }: { path: string, readonly: boolean }) => {
                         </button>
                     </div>
                     <div className="uk-width-auto">
-                        {readonly || isSpecial ||
+                        {readOnly || isSpecial ||
                             <button className="uk-button uk-button-small uk-button-danger uk-padding-remove" title="Delete Folder" onClick={deleteDirectory}>
                                 <span data-uk-icon="close"></span>
                             </button>
@@ -134,9 +134,9 @@ const Directory = ({ path, readonly }: { path: string, readonly: boolean }) => {
                     </div>
                     :
                     <>
-                        {contents.directories.map(childName => <Directory key={childName} path={`${path}/${childName}`} readonly={readonly} />)}
-                        {contents.files.map(childName => <File key={childName} path={`${path}/${childName}`} readonly={readonly} />)}
-                        {readonly ||
+                        {contents.directories.map(childName => <Directory key={childName} path={`${path}/${childName}`} readOnly={readOnly} />)}
+                        {contents.files.map(childName => <File key={childName} path={`${path}/${childName}`} readOnly={readOnly} />)}
+                        {readOnly ||
                             <div className="uk-flex">
                                 <div className="uk-width-auto">
                                     <div className="uk-icon-image"></div>
@@ -168,7 +168,7 @@ const Directory = ({ path, readonly }: { path: string, readonly: boolean }) => {
 
 export const Browser = () => (
     <div className="uk-text-nowrap">
-        <Directory path={MonaInputPath} readonly={false} />
-        <Directory path={MonaOutputPath} readonly={true} />
+        <Directory path={MonaInputPath} readOnly={false} />
+        <Directory path={MonaOutputPath} readOnly={true} />
     </div>
 );

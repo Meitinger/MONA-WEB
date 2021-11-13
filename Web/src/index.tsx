@@ -35,15 +35,15 @@ export const AppContext = createContext({} as {
 const App = () => {
     const [tabs, setTabs] = useState({} as {
         [path: string]: {
-            readonly: boolean,
+            readOnly: boolean,
             selected: boolean
         }
     });
 
-    const openTab = (path: string, readonly: boolean) => {
+    const openTab = (path: string, readOnly: boolean) => {
         setTabs(tabs => ({
             ...Object.fromEntries(Object.entries(tabs).map(([path, tab]) => [path, { ...tab, selected: false }])),
-            [path]: { readonly, selected: true }
+            [path]: { readOnly, selected: true }
         }));
     };
 
@@ -95,10 +95,10 @@ const App = () => {
                 </div>
                 <div className="uk-width-extend">
                     <ul data-uk-tab>
-                        {Object.entries(tabs).map(([path, tab], index) => <li key={path} className={tab.selected ? 'uk-active' : ''}><a href={`#workspace${index}`} onClick={() => openTab(path, tab.readonly)}><span uk-icon="icon: file-text"></span><span className="uk-margin-small-left uk-margin-small-right" style={{ textTransform: 'none' }}>{path}{tab.readonly && ' (read-only)'}</span><button data-uk-close onClick={e => { closeTab(path); e.stopPropagation(); }}></button></a></li>)}
+                        {Object.entries(tabs).map(([path, tab], index) => <li key={path} className={tab.selected ? 'uk-active' : ''}><a href={`#workspace${index}`} onClick={() => openTab(path, tab.readOnly)}><span uk-icon="icon: file-text"></span><span className="uk-margin-small-left uk-margin-small-right" style={{ textTransform: 'none' }}>{path}{tab.readOnly && ' (read-only)'}</span><button data-uk-close onClick={e => { closeTab(path); e.stopPropagation(); }}></button></a></li>)}
                     </ul>
                     <div className="uk-margin">
-                        {Object.entries(tabs).map(([path, tab], index) => <div key={path} id={`workspace${index}`} hidden={!tab.selected}><Workspace path={path} readonly={tab.readonly} /></div>)}
+                        {Object.entries(tabs).map(([path, tab], index) => <div key={path} id={`workspace${index}`} hidden={!tab.selected}><Workspace path={path} readOnly={tab.readOnly} /></div>)}
                     </div>
                 </div>
             </div>
