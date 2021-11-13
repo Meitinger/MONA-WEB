@@ -23,3 +23,8 @@ Front/mona
 Lib/dfa2dot
 Lib/gta2dot
 
+/Web/build
+/Web/node_modules
+/Web/public/static/js/editor.worker.js
+/Web/public/static/js/mona.js
+/Web/public/static/js/mona.wasm

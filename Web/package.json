@@ -1,0 +1,34 @@
+{
+  "name": "mona_web",
+  "version": "1.4.18",
+  "description": "MONA - a decision procedure for monadic second-order logic on finite strings and trees",
+  "homepage": "https://meitinger.github.io/MONA-WEB/",
+  "dependencies": {
+    "monaco-editor": "^0.30.1",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
+    "uikit": "^3.9.2"
+  },
+  "devDependencies": {
+    "@types/react": "^17.0.30",
+    "@types/react-dom": "^17.0.9",
+    "@types/uikit": "^3.3.2",
+    "react-scripts": "^4.0.3",
+    "typescript": "^4.4.4"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test --env=jsdom",
+    "eject": "react-scripts eject"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app"
+    ]
+  },
+  "browserslist": [
+    ">0.2%",
+    "not dead"
+  ]
+}
