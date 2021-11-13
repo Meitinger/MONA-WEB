@@ -67,16 +67,16 @@ const File = ({ path, readOnly }: { path: string, readOnly: boolean }) => {
 const Directory = ({ path, readOnly }: { path: string, readOnly: boolean }) => {
     const app = useContext(AppContext);
     const isSpecial = MonaFileSystem.isSpecialDirectory(path);
-    const [contents, setContents] = useState(null as MonaDirectoryContents | null | Error);
-    const [expanded, setExpanded] = useState(isSpecial);
-    const [newChildName, setNewChildName] = useState('');
+    const [contents, setContents] = useState<MonaDirectoryContents | null | Error>(null);
+    const [expanded, setExpanded] = useState<boolean>(isSpecial);
+    const [newChildName, setNewChildName] = useState<string>('');
 
     const name = getName(path);
     const hasContent = contents && (contents instanceof Error || contents.directories.length > 0 || contents.files.length > 0 || !readOnly);
 
     useEffect(() => {
         MonaFileSystem.addDirectoryListener(path, setContents);
-        MonaFileSystem.enumDirectory(path).then(setContents).catch(reason => new Error(String(reason)));
+        MonaFileSystem.enumDirectory(path).then(setContents).catch(reason => setContents(new Error(String(reason))));
         return () => MonaFileSystem.removeDirectoryListener(path, setContents);
     }, [path]);
 

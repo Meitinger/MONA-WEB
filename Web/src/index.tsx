@@ -21,59 +21,24 @@
  * USA.
  */
 
-import { createContext, useState } from 'react';
+import { createContext, useMemo, useState } from 'react';
 import { render } from 'react-dom';
 import { Browser } from './browser';
+import { Tab, TabsHandler, Tabs } from './tabs';
 import './uikitloader.js';
 import { Workspace } from './workspace';
 
 export const AppContext = createContext({} as {
-    openTab: (path: string, readonly: boolean) => void
+    openTab: (path: string, readOnly: boolean) => void
     closeTab: (path: string) => void
 });
 
 const App = () => {
-    const [tabs, setTabs] = useState({} as {
-        [path: string]: {
-            readOnly: boolean,
-            selected: boolean
-        }
-    });
-
-    const openTab = (path: string, readOnly: boolean) => {
-        setTabs(tabs => ({
-            ...Object.fromEntries(Object.entries(tabs).map(([path, tab]) => [path, { ...tab, selected: false }])),
-            [path]: { readOnly, selected: true }
-        }));
-    };
-
-    const closeTab = (path: string) => {
-        setTabs(tabs => {
-            const tab = tabs[path];
-            if (tab) {
-                const newTabs = { ...tabs };
-                delete newTabs[path];
-                if (tab.selected) {
-                    const keys = Object.keys(tabs);
-                    const index = keys.indexOf(path);
-                    const selectedPath = (index + 1) < keys.length ? keys[index + 1] : (index - 1) >= 0 ? keys[index - 1] : undefined;
-                    if (selectedPath !== undefined) {
-                        const selectedTab = newTabs[selectedPath];
-                        if (selectedTab) {
-                            newTabs[selectedPath] = { ...selectedTab, selected: true };
-                        }
-                    }
-                }
-                return newTabs;
-            }
-            else {
-                return tabs;
-            }
-        });
-    };
+    const [tabs, setTabs] = useState<Tabs>({});
+    const tabHandler = useMemo(() => new TabsHandler(setTabs), []);
 
     return (
-        <AppContext.Provider value={{ openTab, closeTab }}>
+        <AppContext.Provider value={tabHandler}>
             <nav className="uk-navbar-container uk-navbar-transparent uk-light uk-background-primary" data-uk-navbar>
                 <div className="uk-navbar-left">
                     <a className="uk-navbar-item uk-logo" href="https://www.brics.dk/mona/">MONA Web</a>
@@ -95,7 +60,7 @@ const App = () => {
                 </div>
                 <div className="uk-width-extend">
                     <ul data-uk-tab>
-                        {Object.entries(tabs).map(([path, tab], index) => <li key={path} className={tab.selected ? 'uk-active' : ''}><a href={`#workspace${index}`} onClick={() => openTab(path, tab.readOnly)}><span uk-icon="icon: file-text"></span><span className="uk-margin-small-left uk-margin-small-right" style={{ textTransform: 'none' }}>{path}{tab.readOnly && ' (read-only)'}</span><button data-uk-close onClick={e => { closeTab(path); e.stopPropagation(); }}></button></a></li>)}
+                        {Object.entries(tabs).map(([path, tab], index) => <Tab key={path} id={`#workspace${index}`} path={path} selected={tab.selected} readOnly={tab.readOnly} />)}
                     </ul>
                     <div className="uk-margin">
                         {Object.entries(tabs).map(([path, tab], index) => <div key={path} id={`workspace${index}`} hidden={!tab.selected}><Workspace path={path} readOnly={tab.readOnly} /></div>)}

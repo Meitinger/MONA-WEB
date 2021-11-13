@@ -148,9 +148,13 @@ export class MonaFileSystem {
 
     static async writeFile(path: string, contents: string): Promise<void> {
         const fs = await this._fs;
+        const created = fs.tryNode(path) == null;
         fs.write(path, contents);
         await fs.sync();
         this.notifyFileListeners(path, contents);
+        if (created) {
+            this.notifyParentDirectoryListeners(fs, path);
+        }
     }
 
     static async deleteFile(path: string): Promise<void> {

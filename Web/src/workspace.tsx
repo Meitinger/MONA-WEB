@@ -22,9 +22,8 @@
  */
 
 import * as monaco from 'monaco-editor';
-import { useContext, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { render } from 'react-dom';
-import { AppContext } from '.';
 import { alert } from './helpers';
 import { MonaData, MonaFileSystem, MonaRuntime } from './mona';
 
@@ -121,7 +120,6 @@ const callback = async (
 };
 
 export const Workspace = ({ path, readOnly }: { path: string, readOnly: boolean }) => {
-    const app = useContext(AppContext);
     const editorDiv = useRef<HTMLDivElement>(null);
     const errorsDiv = useRef<HTMLDivElement>(null);
     const graphDiv = useRef<HTMLDivElement>(null);
@@ -211,11 +209,7 @@ export const Workspace = ({ path, readOnly }: { path: string, readOnly: boolean 
 
         let isFirstSet = true;
         const setContentsAndClose = (contents: string | null) => {
-            if (contents == null) {
-                app.closeTab(path);
-                return;
-            }
-            if (readOnly || isFirstSet) {
+            if (contents != null && (readOnly || isFirstSet)) {
                 isFirstSet = false;
                 const view = editor.saveViewState();
                 editor.setValue(contents);
@@ -233,7 +227,7 @@ export const Workspace = ({ path, readOnly }: { path: string, readOnly: boolean 
             MonaFileSystem.removeFileListener(path, setContentsAndClose);
             editor.dispose();
         }
-    }, [app, path, readOnly]);
+    }, [path, readOnly]);
 
     return (
         <div className="uk-grid-divider uk-grid-small" data-uk-grid>
@@ -244,12 +238,12 @@ export const Workspace = ({ path, readOnly }: { path: string, readOnly: boolean 
                     <div className="uk-navbar-left">
                         <div className="uk-navbar-item">
                             <button className="uk-button uk-button-default" disabled={contents.saved || saving} title="Save File" onClick={() => callbackWrapper(false)}><span data-uk-icon="database"></span></button>
-                            <label><input type="checkbox" className="uk-checkbox" checked={autoSave} onChange={e => setAutoSave(e.target.checked)} /> Auto Save</label>
+                            <label><input type="checkbox" className="uk-checkbox" checked={autoSave} onChange={e => setAutoSave(e.target.checked)} /> Auto-Save</label>
                             <div data-uk-spinner style={{ visibility: saving ? 'visible' : 'hidden' }}></div>
                         </div>
                         <div className="uk-navbar-item">
                             <button className={`uk-button uk-button-${running ? 'danger' : 'primary'}`} disabled={!!contents.result} title={running ? 'Abort Run' : 'Run File'} onClick={() => running ? MonaRuntime.stop('Cancelled by user.') : callbackWrapper(true)}><span data-uk-icon={running ? 'bolt' : 'play'}></span></button>
-                            <label><input type="checkbox" className="uk-checkbox" checked={autoRun} onChange={e => setAutoRun(e.target.checked)} /> Auto Save</label>
+                            <label><input type="checkbox" className="uk-checkbox" checked={autoRun} onChange={e => setAutoRun(e.target.checked)} /> Auto-Run</label>
                             <div data-uk-spinner style={{ visibility: running ? 'visible' : 'hidden' }}></div>
                         </div>
                     </div>
