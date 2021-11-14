@@ -162,6 +162,7 @@ export const Workspace = ({ id, path, readOnly }: {
     const [autoRun, setAutoRun] = useState(true);
     const [saving, setSaving] = useState(false);
     const [running, setRunning] = useState(false);
+    const [scale, setScale] = useState(1);
 
     const context = useMemo<Context>(() => ({
         id,
@@ -190,7 +191,7 @@ export const Workspace = ({ id, path, readOnly }: {
     }, [autoRun]);
 
     useEffect(() => {
-        if (!autoSave && !autoRun) {
+        if ((!autoSave || contents.saved) && (!autoRun || contents.result)) {
             return;
         }
         const timeout = setTimeout(() => callback(contents, setContents, autoRun, setSaving, setRunning, appendError), 500);
@@ -209,6 +210,8 @@ export const Workspace = ({ id, path, readOnly }: {
         }
         try {
             const element = new DOMParser().parseFromString(graph, 'image/svg+xml').documentElement;
+            element.style.transformOrigin = 'top left';
+            element.style.transform = `scale(${scale})`;
             div.appendChild(element);
             return () => { div.removeChild(element); }
         }
@@ -216,7 +219,7 @@ export const Workspace = ({ id, path, readOnly }: {
             appendError(`Cannot render file: ${String(error)}`);
             return;
         }
-    }, [contents]);
+    }, [contents, scale]);
 
     useEffect(() => {
         if (!editorDiv.current) {
@@ -287,8 +290,13 @@ export const Workspace = ({ id, path, readOnly }: {
             <div className="uk-width-1-2">
                 <WorkspaceContext.Provider value={context}>
                     <TextArea tab="Errors" values={errors} />
-                    <div {...tabAttributes(context, 'Graph')}>
-                        <div ref={graphDiv}></div>
+                    <div  {...tabAttributes(context, 'Graph')}>
+                        <div className="uk-margin">
+                            <input className="uk-range" type="range" min="1" max="10" step="0.1" value={scale} onChange={e => setScale(parseFloat(e.target.value))} />
+                        </div>
+                        <div className="uk-panel uk-panel-scrollable" data-uk-height-viewport={`offset-top: true; offset-bottom: #tabs${context.id}`}>
+                            <div ref={graphDiv}></div>
+                        </div>
                     </div>
                     <TextArea tab="SatisfyingExample" values={contents.result?.satisfyingExample} />
                     <TextArea tab="CounterExample" values={contents.result?.counterExample} />
