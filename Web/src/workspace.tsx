@@ -142,8 +142,8 @@ const Link = ({ tab, children }: {
 }) => {
     const context = useContext(WorkspaceContext);
     return (
-        <li className={isCurrentTab(context, tab) ? 'uk-active' : tab === context.currentTab ? 'uk-disable' : ''}>
-            <a href={`${tab.toLowerCase()}${context.id}`} onClick={() => context.setCurrentTab(tab)}>{children}</a>
+        <li className={isCurrentTab(context, tab) ? 'uk-active' : tab !== 'Errors' && !context.hasResult ? 'uk-disabled' : ''}>
+            <a href={`#${tab.toLowerCase()}${context.id}`} onClick={() => context.setCurrentTab(tab)}>{children}</a>
         </li>
     );
 };
@@ -209,7 +209,11 @@ export const Workspace = ({ id, path, readOnly }: {
             return;
         }
         try {
-            const element = new DOMParser().parseFromString(graph, 'image/svg+xml').documentElement;
+            let element = new DOMParser().parseFromString(graph, 'image/svg+xml').documentElement;
+            if (element.nodeName !== 'svg') {
+                element = document.createElement('div');
+                element.innerText = graph;
+            }
             element.style.transformOrigin = 'top left';
             element.style.transform = `scale(${scale})`;
             div.appendChild(element);

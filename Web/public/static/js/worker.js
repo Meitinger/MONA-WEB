@@ -200,7 +200,8 @@ self.onmessage = async e => {
             throw new Error(`Invalid output:\n${stdout.join('\n')}`);
         }
         if (result.dfa) {
-            result.dfa.graph = buildGraph(result.dfa);
+            try { result.dfa.graph = buildGraph(result.dfa); }
+            catch (error) { result.dfa.graph = String(error); }
         }
     }
     catch (error) {
