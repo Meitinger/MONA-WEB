@@ -23,8 +23,6 @@
 
 import * as monaco from 'monaco-editor';
 import { useEffect, useRef, useState } from 'react';
-import { render } from 'react-dom';
-import { alert } from './helpers';
 import { MonaData, MonaFileSystem, MonaRuntime } from './mona';
 
 // @ts-ignore
@@ -59,15 +57,9 @@ const callback = async (
     running: (setter: (value: boolean) => boolean) => void,
     handleError: (message: string) => void
 ) => {
-    const update = () => setContents(currentContents => contents.stale ? currentContents : new Proxy(contents, {}));
+    const reschedule = () => setTimeout(() => callback(contents, setContents, doRun, saving, running, handleError), 500);
 
-    const reschedule = () => setTimeout(() => callback(contents, setContents, doRun, saving, running, handleError), 1000);
-
-    if (contents.stale) {
-        return;
-    }
-
-    if (!contents.saved) {
+    if (!contents.stale && !contents.saved) {
         if (!await begin(saving)) {
             reschedule();
             return;
@@ -88,13 +80,9 @@ const callback = async (
         finally {
             await end(saving);
         }
-        if (contents.stale) {
-            return;
-        }
-        update();
     }
 
-    if (!contents.result && doRun) {
+    if (!contents.stale && !contents.result && doRun) {
         if (!await begin(running)) {
             reschedule();
             return;
@@ -112,37 +100,57 @@ const callback = async (
         finally {
             await end(running);
         }
-        if (contents.stale) {
-            return;
-        }
-        update();
+    }
+
+    if (!contents.stale) {
+        setContents(currentContents => contents.stale ? currentContents : new Proxy(contents, {}))
     }
 };
 
-export const Workspace = ({ path, readOnly }: { path: string, readOnly: boolean }) => {
+export const Workspace = ({ id, path, readOnly }: {
+    id: number
+    path: string
+    readOnly: boolean
+}) => {
+    type Tab = 'Errors' | 'Graph' | 'SatisfyingExample' | 'CounterExample'
+
     const editorDiv = useRef<HTMLDivElement>(null);
-    const errorsDiv = useRef<HTMLDivElement>(null);
     const graphDiv = useRef<HTMLDivElement>(null);
+    const [errors, setErrors] = useState<string[]>([]);
+    const [currentTab, setCurrentTab] = useState<Tab>('Errors');
     const [contents, setContents] = useState<Contents>({ path, data: null, saved: true, result: null, stale: false });
     const [autoSave, setAutoSave] = useState(true);
     const [autoRun, setAutoRun] = useState(true);
     const [saving, setSaving] = useState(false);
     const [running, setRunning] = useState(false);
 
+    const isTab = (tab: Tab) => contents.result ? currentTab === tab : tab === 'Errors';
+
+    const tabAttributes = (tab: Tab) => ({
+        id: `${tab.toLowerCase()}${id}`,
+        hidden: !isTab(tab),
+        'data-uk-height-viewport': `offset-top: true; offset-bottom: #tabs${id}`
+    });
+
+    const TextArea = ({ tab, values }: {
+        tab: Tab
+        values: string[] | undefined
+    }) => (
+        <textarea {...tabAttributes(tab)} className="uk-textarea uk-width-1-1" style={{ fontFamily: 'monospace' }} readOnly={true} value={values?.join('\n') ?? ''} />
+    );
+
+    const Link = ({ tab, children }: {
+        tab: Tab
+        children: string
+    }) => (
+        <li className={isTab(tab) ? 'uk-active' : tab === currentTab ? 'uk-disable' : ''}>
+            <a href={`${tab.toLowerCase()}${id}`} onClick={() => setCurrentTab(tab)}>{children}</a>
+        </li>
+    );
+
     const appendError = (message: string) => {
-        if (!editorDiv.current) {
-            alert(message);
-            return;
-        }
-        render(
-            (
-                <div className="uk-alert-danger" data-uk-alert>
-                    <button className="uk-alert-close" data-uk-close></button>
-                    <p>{message}</p>
-                </div>
-            ),
-            editorDiv.current.appendChild(editorDiv.current.ownerDocument.createElement('div'))
-        );
+        setErrors(errors => errors.concat([message]));
+        setCurrentTab('Errors');
     };
 
     const callbackWrapper = (doRun: boolean) => callback(contents, setContents, doRun, setSaving, setRunning, appendError);
@@ -163,13 +171,14 @@ export const Workspace = ({ path, readOnly }: { path: string, readOnly: boolean 
         if (!autoSave && !autoRun) {
             return;
         }
-        const timeout = setTimeout(() => callback(contents, setContents, autoRun, setSaving, setRunning, appendError), 1000);
+        const timeout = setTimeout(() => callback(contents, setContents, autoRun, setSaving, setRunning, appendError), 500);
         return () => clearTimeout(timeout);
     }, [contents, autoSave, autoRun]);
 
     useEffect(() => {
         const div = graphDiv.current;
         if (!div) {
+            appendError('Graph DIV not found.');
             return;
         }
         const graph = contents.result?.dfa?.graph;
@@ -189,9 +198,13 @@ export const Workspace = ({ path, readOnly }: { path: string, readOnly: boolean 
 
     useEffect(() => {
         if (!editorDiv.current) {
-            throw new Error('Editor DIV not found.');
+            appendError('Editor DIV not found.');
+            return;
         }
-        const editor = monaco.editor.create(editorDiv.current, { readOnly: readOnly });
+        const editor = monaco.editor.create(editorDiv.current, {
+            readOnly: readOnly,
+            automaticLayout: true
+        });
         if (!readOnly) {
             editor.onDidChangeModelContent(e => {
                 setContents(contents => {
@@ -204,6 +217,7 @@ export const Workspace = ({ path, readOnly }: { path: string, readOnly: boolean 
                         stale: false,
                     }
                 });
+                setErrors([]);
             });
         }
 
@@ -230,11 +244,10 @@ export const Workspace = ({ path, readOnly }: { path: string, readOnly: boolean 
     }, [path, readOnly]);
 
     return (
-        <div className="uk-grid-divider uk-grid-small" data-uk-grid>
+        <div className="uk-grid-divider uk-grid-small uk-flex-nowrap" data-uk-grid>
             <div className="uk-width-1-2">
-                <div ref={errorsDiv}></div>
-                <div ref={editorDiv} className="uk-width-1-1 uk-height-large"></div>
-                <nav className="uk-navbar-container" data-uk-navbar>
+                <div ref={editorDiv} data-uk-height-viewport="offset-top: true; offset-bottom: true"></div>
+                <nav className="uk-flex uk-flex-bottom uk-navbar-container" data-uk-navbar>
                     <div className="uk-navbar-left">
                         <div className="uk-navbar-item">
                             <button className="uk-button uk-button-default" disabled={contents.saved || saving} title="Save File" onClick={() => callbackWrapper(false)}><span data-uk-icon="database"></span></button>
@@ -250,8 +263,21 @@ export const Workspace = ({ path, readOnly }: { path: string, readOnly: boolean 
                 </nav>
             </div>
             <div className="uk-width-1-2">
-                <div ref={graphDiv}></div>
+                <TextArea tab="Errors" values={errors} />
+                <div {...tabAttributes('Graph')}>
+                    <div ref={graphDiv}></div>
+                </div>
+                <TextArea tab="SatisfyingExample" values={contents.result?.satisfyingExample} />
+                <TextArea tab="CounterExample" values={contents.result?.counterExample} />
+                <div id={`tabs${id}`}>
+                    <ul className="uk-tab-bottom" data-uk-tab>
+                        <Link tab="Errors">Errors</Link>
+                        <Link tab="Graph">Graph</Link>
+                        <Link tab="SatisfyingExample">Satisfying Example</Link>
+                        <Link tab="CounterExample">Counter-Example</Link>
+                    </ul>
+                </div>
             </div>
-        </div >
+        </div>
     );
 };

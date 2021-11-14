@@ -51,9 +51,9 @@ interface FileSystem {
     isDirectory: (node: Node) => boolean
 }
 
-export type MonaFileListener = (contents: string | null) => void;
+export type MonaFileListener = (contents: string | null) => void
 
-export type MonaDirectoryListener = (contents: MonaDirectoryContents) => void;
+export type MonaDirectoryListener = (contents: MonaDirectoryContents) => void
 
 export class MonaFileSystem {
     private static readonly _fs = this.buildFileSystem();

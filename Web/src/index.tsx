@@ -49,7 +49,7 @@ const App = () => {
                     </div>
                 </div>
             </nav>
-            <div className="uk-grid-divider uk-grid-small uk-flex-nowrap" data-uk-grid>
+            <div className="uk-grid-divider uk-grid-small uk-flex-nowrap" data-uk-grid data-uk-height-viewport="offset-top: true">
                 <div className="uk-width-medium">
                     <ul className="uk-flex-center" data-uk-tab>
                         <li className="uk-active"><a href="#browser"><span uk-icon="icon: copy"></span><span className="uk-margin-small-left" style={{ textTransform: 'none' }}>Files</span></a></li>
@@ -63,7 +63,7 @@ const App = () => {
                         {Object.entries(tabs).map(([path, tab], index) => <Tab key={path} id={`#workspace${index}`} path={path} selected={tab.selected} readOnly={tab.readOnly} />)}
                     </ul>
                     <div className="uk-margin">
-                        {Object.entries(tabs).map(([path, tab], index) => <div key={path} id={`workspace${index}`} hidden={!tab.selected}><Workspace path={path} readOnly={tab.readOnly} /></div>)}
+                        {Object.entries(tabs).map(([path, tab], index) => <div key={path} id={`workspace${index}`} hidden={!tab.selected}><Workspace id={index} path={path} readOnly={tab.readOnly} /></div>)}
                     </div>
                 </div>
             </div>
