@@ -123,7 +123,7 @@ const isCurrentTab = (context: Context, tab: Tab) => context.hasResult ? context
 const tabAttributes = (context: Context, tab: Tab) => ({
     id: `${tab.toLowerCase()}${context.id}`,
     hidden: !isCurrentTab(context, tab),
-    'data-uk-height-viewport': `offset-top: true; offset-bottom: #tabs${context.id}`
+    ...isCurrentTab(context, tab) && { 'data-uk-height-viewport': `offset-top: true; offset-bottom: #tabs${context.id}` }
 });
 
 const TextArea = ({ tab, values }: {
@@ -290,7 +290,7 @@ export const Workspace = ({ id, path, readOnly }: {
             <div className="uk-width-1-2">
                 <WorkspaceContext.Provider value={context}>
                     <TextArea tab="Errors" values={errors} />
-                    <div  {...tabAttributes(context, 'Graph')}>
+                    <div {...tabAttributes(context, 'Graph')}>
                         <div className="uk-margin">
                             <input className="uk-range" type="range" min="1" max="10" step="0.1" value={scale} onChange={e => setScale(parseFloat(e.target.value))} />
                         </div>
@@ -301,7 +301,7 @@ export const Workspace = ({ id, path, readOnly }: {
                     <TextArea tab="SatisfyingExample" values={contents.result?.satisfyingExample} />
                     <TextArea tab="CounterExample" values={contents.result?.counterExample} />
                     <div id={`tabs${id}`}>
-                        <ul className="uk-tab-bottom" data-uk-tab>
+                        <ul className="uk-tab-bottom uk-margin-remove-bottom" data-uk-tab>
                             <Link tab="Errors">Errors</Link>
                             <Link tab="Graph">Graph</Link>
                             <Link tab="SatisfyingExample">Satisfying Example</Link>
