@@ -23,12 +23,11 @@ jobs:
       - run: emconfigure ./configure
       - run: emmake make
       - run: emcc Front/*.o */.libs/*.a -O3 -o mona.js -s MODULARIZE=1 -s EXIT_RUNTIME=1 -s INVOKE_RUN=0 -s EXPORTED_RUNTIME_METHODS='["callMain","FS","IDBFS","ENV"]' -lidbfs.js
-      - run: cd Web
-      - run: npm install
-      - run: npm run build
-      - run: cp ../mona.js build/static/js/mona.js
-      - run: cp ../mona.wasm build/static/js/mona.wasm
-      - run: cp node_modules/monaco-editor/min/vs/base/worker/workerMain.js build/static/js/editor.worker.js
+      - run: (cd Web && npm install)
+      - run: (cd Web && npm run build)
+      - run: cp mona.js Web/build/static/js/mona.js
+      - run: cp mona.wasm Web/build/static/js/mona.wasm
+      - run: cp Web/node_modules/monaco-editor/min/vs/base/worker/workerMain.js Web/build/static/js/editor.worker.js
 
       - uses: JamesIves/github-pages-deploy-action@4.1.5
         with:
