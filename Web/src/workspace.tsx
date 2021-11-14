@@ -22,7 +22,7 @@
  */
 
 import * as monaco from 'monaco-editor';
-import { useEffect, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { MonaData, MonaFileSystem, MonaRuntime } from './mona';
 
 // @ts-ignore
@@ -107,13 +107,52 @@ const callback = async (
     }
 };
 
+type Tab = 'Errors' | 'Graph' | 'SatisfyingExample' | 'CounterExample'
+
+interface Context {
+    id: number
+    currentTab: Tab
+    setCurrentTab: (tab: Tab) => void
+    hasResult: boolean
+}
+
+const WorkspaceContext = createContext({} as Context);
+
+const isCurrentTab = (context: Context, tab: Tab) => context.hasResult ? context.currentTab === tab : tab === 'Errors';
+
+const tabAttributes = (context: Context, tab: Tab) => ({
+    id: `${tab.toLowerCase()}${context.id}`,
+    hidden: !isCurrentTab(context, tab),
+    'data-uk-height-viewport': `offset-top: true; offset-bottom: #tabs${context.id}`
+});
+
+const TextArea = ({ tab, values }: {
+    tab: Tab
+    values: string[] | undefined
+}) => {
+    const context = useContext(WorkspaceContext);
+    return (
+        <textarea {...tabAttributes(context, tab)} className="uk-textarea uk-width-1-1" style={{ fontFamily: 'monospace' }} readOnly={true} value={values?.join('\n') ?? ''} />
+    );
+};
+
+const Link = ({ tab, children }: {
+    tab: Tab
+    children: string
+}) => {
+    const context = useContext(WorkspaceContext);
+    return (
+        <li className={isCurrentTab(context, tab) ? 'uk-active' : tab === context.currentTab ? 'uk-disable' : ''}>
+            <a href={`${tab.toLowerCase()}${context.id}`} onClick={() => context.setCurrentTab(tab)}>{children}</a>
+        </li>
+    );
+};
+
 export const Workspace = ({ id, path, readOnly }: {
     id: number
     path: string
     readOnly: boolean
 }) => {
-    type Tab = 'Errors' | 'Graph' | 'SatisfyingExample' | 'CounterExample'
-
     const editorDiv = useRef<HTMLDivElement>(null);
     const graphDiv = useRef<HTMLDivElement>(null);
     const [errors, setErrors] = useState<string[]>([]);
@@ -124,29 +163,12 @@ export const Workspace = ({ id, path, readOnly }: {
     const [saving, setSaving] = useState(false);
     const [running, setRunning] = useState(false);
 
-    const isTab = (tab: Tab) => contents.result ? currentTab === tab : tab === 'Errors';
-
-    const tabAttributes = (tab: Tab) => ({
-        id: `${tab.toLowerCase()}${id}`,
-        hidden: !isTab(tab),
-        'data-uk-height-viewport': `offset-top: true; offset-bottom: #tabs${id}`
-    });
-
-    const TextArea = ({ tab, values }: {
-        tab: Tab
-        values: string[] | undefined
-    }) => (
-        <textarea {...tabAttributes(tab)} className="uk-textarea uk-width-1-1" style={{ fontFamily: 'monospace' }} readOnly={true} value={values?.join('\n') ?? ''} />
-    );
-
-    const Link = ({ tab, children }: {
-        tab: Tab
-        children: string
-    }) => (
-        <li className={isTab(tab) ? 'uk-active' : tab === currentTab ? 'uk-disable' : ''}>
-            <a href={`${tab.toLowerCase()}${id}`} onClick={() => setCurrentTab(tab)}>{children}</a>
-        </li>
-    );
+    const context = useMemo<Context>(() => ({
+        id,
+        currentTab,
+        setCurrentTab,
+        hasResult: !!contents.result
+    }), [id, currentTab, contents]);
 
     const appendError = (message: string) => {
         setErrors(errors => errors.concat([message]));
@@ -263,20 +285,22 @@ export const Workspace = ({ id, path, readOnly }: {
                 </nav>
             </div>
             <div className="uk-width-1-2">
-                <TextArea tab="Errors" values={errors} />
-                <div {...tabAttributes('Graph')}>
-                    <div ref={graphDiv}></div>
-                </div>
-                <TextArea tab="SatisfyingExample" values={contents.result?.satisfyingExample} />
-                <TextArea tab="CounterExample" values={contents.result?.counterExample} />
-                <div id={`tabs${id}`}>
-                    <ul className="uk-tab-bottom" data-uk-tab>
-                        <Link tab="Errors">Errors</Link>
-                        <Link tab="Graph">Graph</Link>
-                        <Link tab="SatisfyingExample">Satisfying Example</Link>
-                        <Link tab="CounterExample">Counter-Example</Link>
-                    </ul>
-                </div>
+                <WorkspaceContext.Provider value={context}>
+                    <TextArea tab="Errors" values={errors} />
+                    <div {...tabAttributes(context, 'Graph')}>
+                        <div ref={graphDiv}></div>
+                    </div>
+                    <TextArea tab="SatisfyingExample" values={contents.result?.satisfyingExample} />
+                    <TextArea tab="CounterExample" values={contents.result?.counterExample} />
+                    <div id={`tabs${id}`}>
+                        <ul className="uk-tab-bottom" data-uk-tab>
+                            <Link tab="Errors">Errors</Link>
+                            <Link tab="Graph">Graph</Link>
+                            <Link tab="SatisfyingExample">Satisfying Example</Link>
+                            <Link tab="CounterExample">Counter-Example</Link>
+                        </ul>
+                    </div>
+                </WorkspaceContext.Provider>
             </div>
         </div>
     );
