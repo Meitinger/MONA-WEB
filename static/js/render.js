@@ -29,9 +29,11 @@ var gb=[c4,FL];var hb=[d4,RF,QF,SF,TF,d4,d4,d4];var ib=[e4,ML];var jb=[f4,eq,EH,
   return Module;
 };
 
-const instance = Module();
-
 global.render = function(src, options) {
+  const instance = Module({
+    TOTAL_MEMORY: 64 * 1024 * 1024
+  });
+
   var i;
   for (i = 0; i < options.files.length; i++) {
     instance['ccall']('vizCreateFile', 'number', ['string', 'string'], [options.files[i].path, options.files[i].data]);
