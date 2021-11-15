@@ -46,7 +46,7 @@ const run = async (args) => {
 
     // restore mount points from IndexedDB
     const sync = (dir, direction) => new Promise((resolve, reject) => Mona.IDBFS.syncfs(dir.mount, direction, error => error ? reject(error) : resolve()));
-    await sync(InputDir, true).then();
+    await sync(InputDir, true);
     await sync(OutputDir, true);
 
     // run Mona and store output to IndexedDB
