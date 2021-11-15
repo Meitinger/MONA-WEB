@@ -173,7 +173,6 @@ export const Workspace = ({ id, path, readOnly }: {
 
     const appendError = (message: string) => {
         setErrors(errors => errors.concat([message]));
-        setCurrentTab('Errors');
     };
 
     const callbackWrapper = (doRun: boolean) => callback(contents, setContents, doRun, setSaving, setRunning, appendError);
