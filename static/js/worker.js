@@ -171,14 +171,14 @@ function parseLine(result, state, s) {
 
 // we do our own GraphViz construction in order to not call Mona twice
 function buildGraph(dfa) {
-    let graph = 'digraph MONA_DFA {\n rankdir=LR;\n center=true;\n size="9,10";\n edge [fontname=Courier];\n node [height=.5, width=.5];\n node [shape=circle];\n';
+    let graph = 'digraph MONA_DFA {\n rankdir=LR;\n center=true;\n size="9,10";\n edge [fontname=Courier];\n node [height=.5, width=.5];\n';
     if (dfa.acceptingStates) {
         graph += ` node [shape=doublecircle]; ${dfa.acceptingStates.join('; ')};\n`;
     }
     if (dfa.dontCareStates) {
         graph += ` node [shape=box]; ${dfa.dontCareStates.join('; ')};\n`;
     }
-    graph += ` init [shape=plaintext, label="${dfa.freeVariables.join('\\n')}"];\n`;
+    graph += ` node [shape=circle];\n init [shape=plaintext, label="${dfa.freeVariables.join('\\n')}"];\n`;
     if (dfa.initialState) {
         graph += ` init -> ${dfa.initialState};\n`;
     }
