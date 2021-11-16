@@ -27,12 +27,7 @@ jobs:
       - run: emcc Lib/gta2dot.c Lib/gtalib.c -O3 -o gta2dot.js -s MODULARIZE=1 -s EXPORT_NAME="'Gta2DotModule'" -s EXIT_RUNTIME=1 -s INVOKE_RUN=0 -s ALLOW_MEMORY_GROWTH=1 -s EXPORTED_RUNTIME_METHODS='["callMain","FS","IDBFS"]' -lidbfs.js
       - run: (cd Web && npm install)
       - run: (cd Web && npm run build)
-      - run: cp mona.js Web/build/static/js/mona.js
-      - run: cp mona.wasm Web/build/static/js/mona.wasm
-      - run: cp dfa2dot.js Web/build/static/js/dfa2dot.js
-      - run: cp dfa2dot.wasm Web/build/static/js/dfa2dot.wasm
-      - run: cp dfa2dot.js Web/build/static/js/gta2dot.js
-      - run: cp dfa2dot.wasm Web/build/static/js/gta2dot.wasm
+      - run: cp *.js *.wasm Web/build/static/js/
       - run: cp Web/node_modules/monaco-editor/min/vs/base/worker/workerMain.js Web/build/static/js/editor.worker.js
 
       - uses: JamesIves/github-pages-deploy-action@4.1.5
