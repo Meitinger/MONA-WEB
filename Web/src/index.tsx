@@ -21,7 +21,7 @@
  * USA.
  */
 
-import { createContext, useMemo, useState } from 'react';
+import { createContext, useMemo, useReducer } from 'react';
 import { render } from 'react-dom';
 import { Browser } from './browser';
 import { Tab, TabsHandler, Tabs } from './tabs';
@@ -34,36 +34,40 @@ export const AppContext = createContext({} as {
 });
 
 const App = () => {
-    const [tabs, setTabs] = useState<Tabs>({});
+    const [tabs, setTabs] = useReducer((tabs: Tabs, action: (tabs: Tabs) => Tabs) => {
+        const result = action(tabs);
+        window.localStorage.setItem('tabs', JSON.stringify(result));
+        return result;
+    }, JSON.parse(window.localStorage.getItem('tabs') ?? '{}') as Tabs);
     const tabHandler = useMemo(() => new TabsHandler(setTabs), []);
 
     return (
         <AppContext.Provider value={tabHandler}>
             <nav className="uk-navbar-container uk-navbar-transparent uk-light uk-background-primary" data-uk-navbar>
                 <div className="uk-navbar-left">
-                    <a className="uk-navbar-item uk-logo" href="https://www.brics.dk/mona/">MONA Web</a>
+                    <a className="uk-navbar-item uk-logo" target="_blank" rel="noreferrer" href="https://www.brics.dk/mona/">MONA Web</a>
                 </div>
                 <div className="uk-navbar-right">
                     <div className="uk-navbar-item">
-                        <a className="uk-button uk-button-default" href="http://www.brics.dk/mona/mona14.pdf">Manual</a>
+                        <a className="uk-button uk-button-default" target="_blank" rel="noreferrer" href="http://www.brics.dk/mona/mona14.pdf">Manual</a>
                     </div>
                 </div>
             </nav>
             <div className="uk-grid-divider uk-grid-small uk-flex-nowrap" data-uk-grid data-uk-height-viewport="offset-top: true">
                 <div className="uk-width-medium">
-                    <ul className="uk-flex-center" data-uk-tab>
-                        <li className="uk-active"><a href="#browser"><span uk-icon="icon: copy"></span><span className="uk-margin-small-left" style={{ textTransform: 'none' }}>Files</span></a></li>
+                    <ul className="uk-flex-center uk-tab">
+                        <li className="uk-active"><a href="#browser" onClick={e => e.preventDefault()}><span uk-icon="icon: copy"></span><span className="uk-margin-small-left" style={{ textTransform: 'none' }}>Files</span></a></li>
                     </ul>
                     <div id="browser">
                         <Browser />
                     </div>
                 </div>
                 <div className="uk-width-extend">
-                    <ul data-uk-tab>
+                    <ul className="uk-tab">
                         {Object.entries(tabs).map(([path, tab], index) => <Tab key={path} id={`#workspace${index}`} path={path} selected={tab.selected} readOnly={tab.readOnly} />)}
                     </ul>
                     <div className="uk-margin">
-                        {Object.entries(tabs).map(([path, tab], index) => <div key={path} id={`workspace${index}`} hidden={!tab.selected}><Workspace id={index} path={path} readOnly={tab.readOnly} /></div>)}
+                        {Object.entries(tabs).map(([path, tab], index) => <div key={path} id={`workspace${index}`} hidden={!tab.selected}><Workspace id={index} path={path} {...tab} /></div>)}
                     </div>
                 </div>
             </div>

@@ -30,8 +30,9 @@ global.MonacoEnvironment = { getWorkerUrl: (_moduleId: any, _label: string) => '
 
 interface Contents {
     path: string
-    data: string | null
+    data: string
     saved: boolean
+    ran: boolean
     result: MonaData | null
     stale: boolean
 }
@@ -68,7 +69,7 @@ const callback = async (
             if (contents.stale) {
                 return;
             }
-            if (!contents.saved && contents.data) {
+            if (!contents.saved) {
                 await MonaFileSystem.writeFile(contents.path, contents.data);
             }
             contents.saved = true;
@@ -82,7 +83,7 @@ const callback = async (
         }
     }
 
-    if (!contents.stale && !contents.result && doRun) {
+    if (!contents.stale && !contents.ran && doRun) {
         if (!await begin(running)) {
             reschedule();
             return;
@@ -91,7 +92,10 @@ const callback = async (
             if (contents.stale) {
                 return;
             }
-            contents.result ??= await MonaRuntime.run(contents.path);
+            if (!contents.ran) {
+                contents.result = await MonaRuntime.run(contents.path);
+                contents.ran = true;
+            }
         }
         catch (error) {
             handleError(`Failed to run file: ${String(error)}`);
@@ -114,11 +118,12 @@ interface Context {
     currentTab: Tab
     setCurrentTab: (tab: Tab) => void
     hasResult: boolean
+    visible: boolean
 }
 
 const WorkspaceContext = createContext({} as Context);
 
-const isCurrentTab = (context: Context, tab: Tab) => context.hasResult ? context.currentTab === tab : tab === 'Errors';
+const isCurrentTab = (context: Context, tab: Tab) => context.visible && (context.hasResult ? context.currentTab === tab : tab === 'Errors');
 
 const tabAttributes = (context: Context, tab: Tab) => ({
     id: `${tab.toLowerCase()}${context.id}`,
@@ -143,21 +148,22 @@ const Link = ({ tab, children }: {
     const context = useContext(WorkspaceContext);
     return (
         <li className={isCurrentTab(context, tab) ? 'uk-active' : tab !== 'Errors' && !context.hasResult ? 'uk-disabled' : ''}>
-            <a href={`#${tab.toLowerCase()}${context.id}`} onClick={() => context.setCurrentTab(tab)}>{children}</a>
+            <a href={`#${tab.toLowerCase()}${context.id}`} onClick={e => { context.setCurrentTab(tab); e.preventDefault(); }}>{children}</a>
         </li>
     );
 };
 
-export const Workspace = ({ id, path, readOnly }: {
+export const Workspace = ({ id, path, readOnly, selected }: {
     id: number
     path: string
     readOnly: boolean
+    selected: boolean
 }) => {
     const editorDiv = useRef<HTMLDivElement>(null);
     const graphDiv = useRef<HTMLDivElement>(null);
     const [errors, setErrors] = useState<string[]>([]);
     const [currentTab, setCurrentTab] = useState<Tab>('Errors');
-    const [contents, setContents] = useState<Contents>({ path, data: null, saved: true, result: null, stale: false });
+    const [contents, setContents] = useState<Contents>({ path, data: '', saved: true, ran: true, result: null, stale: false });
     const [autoSave, setAutoSave] = useState(true);
     const [autoRun, setAutoRun] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -168,8 +174,9 @@ export const Workspace = ({ id, path, readOnly }: {
         id,
         currentTab,
         setCurrentTab,
-        hasResult: !!contents.result
-    }), [id, currentTab, contents]);
+        hasResult: !!contents.result,
+        visible: selected
+    }), [id, currentTab, contents, selected]);
 
     const appendError = (message: string) => {
         setErrors(errors => errors.concat([message]));
@@ -241,6 +248,7 @@ export const Workspace = ({ id, path, readOnly }: {
                         path,
                         data: editor.getValue(),
                         saved: e.isFlush,
+                        ran: false,
                         result: null,
                         stale: false,
                     }
@@ -283,7 +291,7 @@ export const Workspace = ({ id, path, readOnly }: {
                             <div data-uk-spinner style={{ visibility: saving ? 'visible' : 'hidden' }}></div>
                         </div>
                         <div className="uk-navbar-item">
-                            <button className={`uk-button uk-button-${running ? 'danger' : 'primary'}`} disabled={!!contents.result} title={running ? 'Abort Run' : 'Run File'} onClick={() => running ? MonaRuntime.stop('Cancelled by user.') : callbackWrapper(true)}><span data-uk-icon={running ? 'bolt' : 'play'}></span></button>
+                            <button className={`uk-button uk-button-${running ? 'danger' : 'primary'}`} disabled={contents.ran} title={running ? 'Abort Run' : 'Run File'} onClick={() => running ? MonaRuntime.stop('Cancelled by user.') : callbackWrapper(true)}><span data-uk-icon={running ? 'bolt' : 'play'}></span></button>
                             <label><input type="checkbox" className="uk-checkbox" checked={autoRun} onChange={e => setAutoRun(e.target.checked)} /> Auto-Run</label>
                             <div data-uk-spinner style={{ visibility: running ? 'visible' : 'hidden' }}></div>
                         </div>
@@ -303,8 +311,8 @@ export const Workspace = ({ id, path, readOnly }: {
                     </div>
                     <TextArea tab="SatisfyingExample" values={contents.result?.satisfyingExample} />
                     <TextArea tab="CounterExample" values={contents.result?.counterExample} />
-                    <div id={`tabs${id}`}>
-                        <ul className="uk-tab-bottom uk-margin-remove-bottom" data-uk-tab>
+                    <div id={`tabs${context.id}`}>
+                        <ul className="uk-tab-bottom uk-margin-remove-bottom uk-tab">
                             <Link tab="Errors">Errors</Link>
                             <Link tab="Graph">Graph</Link>
                             <Link tab="SatisfyingExample">Satisfying Example</Link>
