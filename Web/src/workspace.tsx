@@ -241,7 +241,7 @@ export const Workspace = ({ id, path, readOnly, selected }: {
             return;
         }
         const editor = monaco.editor.create(editorDiv.current, {
-            readOnly: readOnly,
+            readOnly,
             automaticLayout: true
         });
         editor.onDidChangeModelContent(e => {
@@ -250,7 +250,7 @@ export const Workspace = ({ id, path, readOnly, selected }: {
                 return {
                     path,
                     data: editor.getValue(),
-                    saved: e.isFlush,
+                    saved: readOnly || e.isFlush,
                     ran: false,
                     result: null,
                     stale: false,

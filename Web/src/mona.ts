@@ -37,13 +37,12 @@ interface Node {
 }
 
 interface FileSystem {
-    sync: () => Promise<void>
     pull: () => Promise<void>
     read: (path: string) => string
-    write: (path: string, data: string) => void
-    unlink: (path: string) => void
-    mkdir: (path: string) => void
-    rmdir: (path: string) => void
+    write: (path: string, data: string) => Promise<void>
+    unlink: (path: string) => Promise<void>
+    mkdir: (path: string) => Promise<void>
+    rmdir: (path: string) => Promise<void>
     node: (path: string) => Node
     tryNode: (path: string) => Node | null
     isFile: (node: Node) => boolean
@@ -68,20 +67,21 @@ export class MonaFileSystem {
         const inputMount = fs.mount(module.IDBFS, {}, MonaInputPath);
         const outputMount = fs.mount(module.IDBFS, {}, MonaOutputPath);
         await new Promise<void>((resolve, reject) => fs.syncfs(true, (error: any) => error ? reject(error) : resolve()));
-        const ensureModifiable = (path: string) => {
-            if (path.startsWith(MonaOutputPath) && (path.length === MonaOutputPath.length || path[MonaOutputPath.length] === '/')) {
-                throw new Error(`Path '${path}' is not modifiable.`);
+        const modify = async (path: string, op: (path: string) => void) => {
+            const isOutput = this.isOutputPath(path);
+            if (isOutput && !MonaRuntime.isIdle) {
+                throw new Error(`Operation on path '${path}' can only be initiated once all pending MONA tasks have finished.`);
             }
-            return path;
+            op(path);
+            await new Promise<void>((resolve, reject) => module.IDBFS.syncfs(isOutput ? outputMount.mount : inputMount.mount, false, (error: any) => error ? reject(error) : resolve()));
         };
         return {
-            sync: () => new Promise<void>((resolve, reject) => module.IDBFS.syncfs(inputMount.mount, false, (error: any) => error ? reject(error) : resolve())),
             pull: () => new Promise<void>((resolve, reject) => module.IDBFS.syncfs(outputMount.mount, true, (error: any) => error ? reject(error) : resolve())),
             read: (path) => fs.readFile(path, { encoding: 'utf8' }),
-            write: (path, data) => fs.writeFile(ensureModifiable(path), data),
-            unlink: (path) => fs.unlink(ensureModifiable(path)),
-            mkdir: (path) => fs.mkdir(ensureModifiable(path)),
-            rmdir: (path) => fs.rmdir(ensureModifiable(path)),
+            write: (path, data) => modify(path, path => fs.writeFile(path, data)),
+            unlink: (path) => modify(path, path => fs.unlink(path)),
+            mkdir: (path) => modify(path, path => fs.mkdir(path)),
+            rmdir: (path) => modify(path, path => fs.rmdir(path)),
             node: (path) => fs.lookupPath(path, { follow: true }).node,
             tryNode: (path) => fs.analyzePath(path, false).object,
             isFile: (node) => fs.isFile(node.mode),
@@ -131,8 +131,7 @@ export class MonaFileSystem {
     static async createFile(path: string): Promise<void> {
         const fs = await this._fs;
         this.ensureNotExists(fs, path);
-        fs.write(path, '');
-        await fs.sync();
+        await fs.write(path, '');
         this.notifyFileListeners(path, '');
         this.notifyParentDirectoryListeners(fs, path);
     }
@@ -145,8 +144,7 @@ export class MonaFileSystem {
     static async writeFile(path: string, contents: string): Promise<void> {
         const fs = await this._fs;
         const created = fs.tryNode(path) == null;
-        fs.write(path, contents);
-        await fs.sync();
+        await fs.write(path, contents);
         this.notifyFileListeners(path, contents);
         if (created) {
             this.notifyParentDirectoryListeners(fs, path);
@@ -155,8 +153,7 @@ export class MonaFileSystem {
 
     static async deleteFile(path: string): Promise<void> {
         const fs = await this._fs;
-        fs.unlink(path);
-        await fs.sync();
+        await fs.unlink(path);
         this.notifyFileListeners(path, null);
         this.notifyParentDirectoryListeners(fs, path);
     }
@@ -186,10 +183,6 @@ export class MonaFileSystem {
         };
     }
 
-    static isSpecialDirectory(path: string): boolean {
-        return path === MonaInputPath || path === MonaOutputPath;
-    }
-
     static async isDirectory(path: string): Promise<boolean> {
         const fs = await this._fs;
         const node = fs.tryNode(path);
@@ -199,8 +192,7 @@ export class MonaFileSystem {
     static async createDirectory(path: string): Promise<void> {
         const fs = await this._fs;
         this.ensureNotExists(fs, path);
-        fs.mkdir(path);
-        await fs.sync();
+        await fs.mkdir(path);
         this.notifyDirectoryListeners(path, { directories: [], files: [] });
         this.notifyParentDirectoryListeners(fs, path);
     }
@@ -212,11 +204,7 @@ export class MonaFileSystem {
 
     static async deleteDirectory(path: string): Promise<void> {
         const fs = await this._fs;
-        if (this.isSpecialDirectory(path)) {
-            throw new Error(`Cannot delete special directory '${path}'.`);
-        }
-        fs.rmdir(path);
-        await fs.sync();
+        await fs.rmdir(path);
         this.notifyParentDirectoryListeners(fs, path);
     }
 
@@ -359,6 +347,10 @@ export class MonaRuntime {
 
     static removeRunListener(listener: MonaRunListener): void {
         this._runListeners.delete(listener);
+    }
+
+    static get isIdle(): boolean {
+        return this._tasks.size === 0;
     }
 
     static run(path: string, module: 'mona' | 'dfa2dot'): Promise<MonaData> {

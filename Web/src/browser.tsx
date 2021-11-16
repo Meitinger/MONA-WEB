@@ -21,7 +21,7 @@
  * USA.
  */
 
-import { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useReducer, useState } from 'react';
 import { AppContext } from '.';
 import { alert, confirm } from './helpers';
 import { MonaDirectoryContents, MonaFileSystem, MonaInputPath, MonaOutputPath } from './mona';
@@ -30,11 +30,14 @@ const isInvalidName = (name: string) => name.length === 0 || name.includes('/');
 
 const getName = (path: string) => path.substring(path.lastIndexOf('/') + 1);
 
-const File = ({ path, readOnly }: { path: string, readOnly: boolean }) => {
+const File = ({ path, isOutput }: {
+    path: string
+    isOutput: boolean
+}) => {
     const app = useContext(AppContext);
     const name = getName(path);
 
-    const openFile = () => app.openTab(path, readOnly);
+    const openFile = () => app.openTab(path, isOutput);
 
     const deleteFile = async () => {
         if (await confirm(`Are you sure you want to delete the file '${path}'?`)) {
@@ -54,25 +57,29 @@ const File = ({ path, readOnly }: { path: string, readOnly: boolean }) => {
                 </button>
             </div>
             <div className="uk-width-auto">
-                {readOnly ||
-                    <button className="uk-button uk-button-small uk-button-danger uk-padding-remove" title="Delete File" onClick={deleteFile}>
-                        <span data-uk-icon="close"></span>
-                    </button>
-                }
+                <button className="uk-button uk-button-small uk-button-danger uk-padding-remove" title="Delete File" onClick={deleteFile}>
+                    <span data-uk-icon="close"></span>
+                </button>
             </div>
         </div>
     );
 }
 
-const Directory = ({ path, readOnly }: { path: string, readOnly: boolean }) => {
+const Directory = ({ path, isOutput, isRoot }: {
+    path: string
+    isOutput: boolean
+    isRoot: boolean
+}) => {
     const app = useContext(AppContext);
-    const isSpecial = MonaFileSystem.isSpecialDirectory(path);
     const [contents, setContents] = useState<MonaDirectoryContents | null | Error>(null);
-    const [expanded, setExpanded] = useState<boolean>(isSpecial);
+    const [expanded, toggleExpanded] = useReducer((state: boolean) => {
+        state = !state;
+        window.localStorage.setItem(`expand${path}`, JSON.stringify(state));
+        return state;
+    }, JSON.parse(window.localStorage.getItem(`expand${path}`) ?? 'true') as boolean);
     const [newChildName, setNewChildName] = useState<string>('');
 
     const name = getName(path);
-    const hasContent = contents && (contents instanceof Error || contents.directories.length > 0 || contents.files.length > 0 || !readOnly);
 
     useEffect(() => {
         MonaFileSystem.addDirectoryListener(path, setContents);
@@ -80,14 +87,13 @@ const Directory = ({ path, readOnly }: { path: string, readOnly: boolean }) => {
         return () => MonaFileSystem.removeDirectoryListener(path, setContents);
     }, [path]);
 
-    const toggleExpanded = () => setExpanded(expanded => !expanded);
 
     const createFile = async () => {
         const childPath = `${path}/${newChildName}`;
         try { await MonaFileSystem.createFile(childPath); }
         catch (error) { return await alert(String(error)); }
         setNewChildName('');
-        app.openTab(childPath, readOnly);
+        app.openTab(childPath, isOutput);
     }
 
     const createDirectory = async () => {
@@ -110,55 +116,55 @@ const Directory = ({ path, readOnly }: { path: string, readOnly: boolean }) => {
         <div className="uk-flex">
             <div className="uk-width-auto">
                 <div className="uk-icon-image">
-                    {hasContent && <span data-uk-icon={expanded ? 'chevron-down' : 'chevron-right'} style={{ cursor: 'pointer' }} onClick={toggleExpanded}></span>}
+                    {contents && <span data-uk-icon={expanded ? 'chevron-down' : 'chevron-right'} style={{ cursor: 'pointer' }} onClick={toggleExpanded}></span>}
                 </div>
             </div>
             <div className="uk-width-expand">
                 <div className="uk-flex">
                     <div className="uk-width-expand">
-                        <button className={`uk-width-1-1 uk-text-left uk-button uk-button-small uk-button-${isSpecial ? 'primary' : 'secondary'}`} title={`${hasContent ? (expanded ? 'Collapse' : 'Expand') : 'Empty'} Folder`} style={{ textTransform: 'none' }} onClick={toggleExpanded} disabled={!hasContent}>
+                        <button className={`uk-width-1-1 uk-text-left uk-button uk-button-small uk-button-${isRoot ? 'primary' : 'secondary'}`} title={`${contents ? (expanded ? 'Collapse' : 'Expand') : 'Loading'} Folder`} style={{ textTransform: 'none' }} onClick={toggleExpanded} disabled={!contents}>
                             <span data-uk-icon="folder"></span><span className="uk-margin-small-left uk-margin-small-right">{name}</span>{!contents && <div data-uk-spinner="ratio: 0.5"></div>}
                         </button>
                     </div>
                     <div className="uk-width-auto">
-                        {readOnly || isSpecial ||
+                        {isRoot ||
                             <button className="uk-button uk-button-small uk-button-danger uk-padding-remove" title="Delete Folder" onClick={deleteDirectory}>
                                 <span data-uk-icon="close"></span>
                             </button>
                         }
                     </div>
                 </div>
-                {hasContent && expanded && (contents instanceof Error ?
+                {contents && expanded && (contents instanceof Error ?
                     <div className="uk-alert-danger">
                         <p>{contents}</p>
                     </div>
                     :
                     <>
-                        {contents.directories.map(childName => <Directory key={childName} path={`${path}/${childName}`} readOnly={readOnly} />)}
-                        {contents.files.map(childName => <File key={childName} path={`${path}/${childName}`} readOnly={readOnly} />)}
-                        {readOnly ||
-                            <div className="uk-flex">
-                                <div className="uk-width-auto">
-                                    <div className="uk-icon-image"></div>
+                        {contents.directories.map(childName => <Directory key={childName} path={`${path}/${childName}`} isOutput={isOutput} isRoot={false} />)}
+                        {contents.files.map(childName => <File key={childName} path={`${path}/${childName}`} isOutput={isOutput} />)}
+                        <div className="uk-flex">
+                            <div className="uk-width-auto">
+                                <div className="uk-icon-image"></div>
+                            </div>
+                            <div className="uk-width-expand">
+                                <div className="uk-inline">
+                                    <span className="uk-form-icon" data-uk-icon="plus"></span>
+                                    <input className="uk-input uk-form-small uk-width-1-1" placeholder={`New ${name} ${isOutput ? 'folder' : 'item'}...`} value={newChildName} onChange={e => setNewChildName(e.target.value)} />
                                 </div>
-                                <div className="uk-width-expand">
-                                    <div className="uk-inline">
-                                        <span className="uk-form-icon" data-uk-icon="plus"></span>
-                                        <input className="uk-input uk-form-small uk-width-1-1" placeholder={`New ${name} item...`} value={newChildName} onChange={e => setNewChildName(e.target.value)} />
-                                    </div>
-                                </div>
-                                <div className="uk-width-auto">
-                                    <div className="uk-button-group">
+                            </div>
+                            <div className="uk-width-auto">
+                                <div className="uk-button-group">
+                                    {isOutput ||
                                         <button className="uk-button uk-button-small uk-button-primary uk-padding-remove" title="Create File" onClick={createFile} disabled={isInvalidName(newChildName)}>
                                             <span data-uk-icon="file-text"></span>
                                         </button>
-                                        <button className="uk-button uk-button-small uk-button-secondary uk-padding-remove" title="Create Directory" onClick={createDirectory} disabled={isInvalidName(newChildName)}>
-                                            <span data-uk-icon="folder"></span>
-                                        </button>
-                                    </div>
+                                    }
+                                    <button className="uk-button uk-button-small uk-button-secondary uk-padding-remove" title="Create Directory" onClick={createDirectory} disabled={isInvalidName(newChildName)}>
+                                        <span data-uk-icon="folder"></span>
+                                    </button>
                                 </div>
                             </div>
-                        }
+                        </div>
                     </>
                 )}
             </div>
@@ -168,7 +174,7 @@ const Directory = ({ path, readOnly }: { path: string, readOnly: boolean }) => {
 
 export const Browser = () => (
     <div className="uk-text-nowrap">
-        <Directory path={MonaInputPath} readOnly={false} />
-        <Directory path={MonaOutputPath} readOnly={true} />
+        <Directory path={MonaInputPath} isOutput={false} isRoot={true} />
+        <Directory path={MonaOutputPath} isOutput={true} isRoot={true} />
     </div>
 );
