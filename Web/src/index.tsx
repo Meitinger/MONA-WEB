@@ -34,7 +34,7 @@ export const AppContext = createContext({} as {
     closeTab: (path: string) => void
 });
 
-const createSampleOnFirstRun = async (tabHandler: TabsHandler) => {
+const createSampleOnFirstRun = async (setTabs: (setter: (value: Tabs) => Tabs) => void) => {
     const isDirectoryEmpty = async (path: string) => {
         const contents = await MonaFileSystem.enumDirectory(path);
         return contents.directories.length === 0 && contents.files.length === 0;
@@ -43,7 +43,7 @@ const createSampleOnFirstRun = async (tabHandler: TabsHandler) => {
     if (await isDirectoryEmpty(MonaInputPath) && await isDirectoryEmpty(MonaOutputPath)) {
         const exampleFileName = `${MonaInputPath}/example`;
         await MonaFileSystem.writeFile(exampleFileName, '# As an example, you could try:\nvar2 P,Q;\nP\\Q = {0,4} union {1,2};\n');
-        tabHandler.openTab(exampleFileName, false);
+        setTabs(_ => ({ [exampleFileName]: { selected: true, readOnly: false } }));
     }
 };
 
@@ -56,7 +56,7 @@ const App = () => {
     const tabHandler = useMemo(() => new TabsHandler(setTabs), []);
 
     useEffect(() => {
-        createSampleOnFirstRun(tabHandler);
+        createSampleOnFirstRun(setTabs);
     }, []);
 
     return (
