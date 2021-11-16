@@ -207,6 +207,5 @@ self.onmessage = async e => {
     catch (error) {
         result.error = String(error);
     }
-    console.log(result);
     self.postMessage(result);
 }
