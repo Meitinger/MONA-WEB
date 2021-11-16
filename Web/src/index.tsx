@@ -21,7 +21,7 @@
  * USA.
  */
 
-import { createContext, useMemo, useReducer } from 'react';
+import { createContext, useEffect, useMemo, useReducer } from 'react';
 import { render } from 'react-dom';
 import { Browser } from './browser';
 import { MonaFileSystem, MonaInputPath, MonaOutputPath } from './mona';
@@ -34,7 +34,7 @@ export const AppContext = createContext({} as {
     closeTab: (path: string) => void
 });
 
-const createSample = async (tabHandler: TabsHandler) => {
+const createSampleOnFirstRun = async (tabHandler: TabsHandler) => {
     const isDirectoryEmpty = async (path: string) => {
         const contents = await MonaFileSystem.enumDirectory(path);
         return contents.directories.length === 0 && contents.files.length === 0;
@@ -53,10 +53,10 @@ const App = () => {
         window.localStorage.setItem('tabs', JSON.stringify(result));
         return result;
     }, JSON.parse(window.localStorage.getItem('tabs') ?? '{}') as Tabs);
-    const tabHandler = useMemo(() => {
-        const handler = new TabsHandler(setTabs);
-        createSample(handler);
-        return handler;
+    const tabHandler = useMemo(() => new TabsHandler(setTabs), []);
+
+    useEffect(() => {
+        createSampleOnFirstRun(tabHandler);
     }, []);
 
     return (
