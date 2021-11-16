@@ -21,41 +21,39 @@
  * USA.
  */
 
-self.importScripts('./render.js', './mona.js');
+self.importScripts('./render.js', './mona.js', 'dfa2dot.js');
 
-// run Mona and capture its output
-const run = async (args) => {
-    const InputPath = '/input';
-    const OutputPath = '/output';
-    const LibPath = `${InputPath}/lib`;
+const InputPath = '/input';
+const OutputPath = '/output';
 
-    // load Mona
+// run a emscripten module and capture its output
+async function run(moduleDefinition, args, returnFile) {
+    // load the module
     const stdout = [];
     const stderr = [];
-    const Mona = await Module({
+    const module = await moduleDefinition({
         print: s => stdout.push(s),
         printErr: s => stderr.push(s),
     });
 
-    // setup ENV and FS
-    Mona.ENV.MONALIB = LibPath;
-    Mona.FS.mkdir(InputPath);
-    Mona.FS.mkdir(OutputPath);
-    const InputDir = Mona.FS.mount(Mona.IDBFS, {}, InputPath);
-    const OutputDir = Mona.FS.mount(Mona.IDBFS, {}, OutputPath);
+    // setup the file system
+    module.FS.mkdir(InputPath);
+    module.FS.mkdir(OutputPath);
+    const InputDir = module.FS.mount(module.IDBFS, {}, InputPath);
+    const OutputDir = module.FS.mount(module.IDBFS, {}, OutputPath);
 
     // restore mount points from IndexedDB
-    const sync = (dir, direction) => new Promise((resolve, reject) => Mona.IDBFS.syncfs(dir.mount, direction, error => error ? reject(error) : resolve()));
+    const sync = (dir, direction) => new Promise((resolve, reject) => module.IDBFS.syncfs(dir.mount, direction, error => error ? reject(error) : resolve()));
     await sync(InputDir, true);
     await sync(OutputDir, true);
 
-    // run Mona and store output to IndexedDB
-    if (Mona.callMain(args) !== 0) {
+    // run the module and store /output to IndexedDB
+    if (module.callMain(args) !== 0) {
         throw new Error(stderr.concat(stdout).join('\n'));
     }
     await sync(OutputDir, false);
-    return stdout;
-};
+    return returnFile ? module.FS.readFile(returnFile, { encoding: 'utf8' }) : stdout;
+}
 
 // the current output state
 const State = Object.freeze({
@@ -86,8 +84,18 @@ const Prefix = Object.freeze({
 const Transition = /^State (?<from>\d+): (?<input>[01X]+) -> state (?<to>\d+)$/;
 const Timing = /^(?<what>[^:]+): *(?<hours>\d\d):(?<minutes>\d\d):(?<seconds>\d\d).(?<hundredth>\d\d)$/;
 
+// options for viz.js
+const RenderOptions = {
+    format: 'svg',
+    engine: 'dot',
+    files: [],
+    images: [],
+    yInvert: false,
+    nop: 0
+};
+
 // parse an output line
-const parseLine = (result, state, s) => {
+function parseLine(result, state, s) {
     if (s.startsWith(Prefix.Dfa.FreeVariables)) {
         result.dfa = {
             freeVariables: s.substring(Prefix.Dfa.FreeVariables.length).split(' ').filter(s => s.length > 0),
@@ -162,7 +170,7 @@ const parseLine = (result, state, s) => {
 }
 
 // we do our own GraphViz construction in order to not call Mona twice
-const buildGraph = dfa => {
+function buildGraph(dfa) {
     let graph = 'digraph MONA_DFA {\n rankdir=LR;\n center=true;\n size="9,10";\n edge [fontname=Courier];\n node [height=.5, width=.5];\n node [shape=circle];\n';
     if (dfa.acceptingStates) {
         graph += ` node [shape=doublecircle]; ${dfa.acceptingStates.join('; ')};\n`;
@@ -182,26 +190,35 @@ const buildGraph = dfa => {
         }
     }
     graph += '}';
-    return render(graph, {
-        format: 'svg',
-        engine: 'dot',
-        files: [],
-        images: [],
-        yInvert: false,
-        nop: 0
-    });
+    return render(graph, RenderOptions);
+}
+
+// execute mona
+async function runMona(result, path) {
+    const stdout = await run(MonaModule, ['-q', '-w', '-t', path], null);
+    if (stdout.reduce((state, line) => parseLine(result, state, line), State.Unknown) !== State.Timings) {
+        throw new Error(`Invalid output:\n${stdout.join('\n')}`);
+    }
+    if (result.dfa) {
+        try { result.dfa.graph = buildGraph(result.dfa); }
+        catch (error) { result.dfa.graph = String(error); }
+    }
+}
+
+//execute dfa2dot
+async function runDfa2Dot(result, path) {
+    const TempFilePath = '/tmp/dfa2dot';
+    const dot = await run(Dfa2DotModule, [path, TempFilePath], TempFilePath);
+    result.dfa = { graph: render(dot.replace('orientation = landscape', ''), RenderOptions) };
 }
 
 self.onmessage = async e => {
     const result = { id: e.data.id };
     try {
-        const stdout = await run(['-q', '-w', '-t', e.data.path]);
-        if (stdout.reduce((state, line) => parseLine(result, state, line), State.Unknown) !== State.Timings) {
-            throw new Error(`Invalid output:\n${stdout.join('\n')}`);
-        }
-        if (result.dfa) {
-            try { result.dfa.graph = buildGraph(result.dfa); }
-            catch (error) { result.dfa.graph = String(error); }
+        switch (e.data.module) {
+            case 'mona': await runMona(result, e.data.path); break;
+            case 'dfa2dot': await runDfa2Dot(result, e.data.path); break;
+            default: throw new Error(`Unknown module: ${e.data.module}`);
         }
     }
     catch (error) {
