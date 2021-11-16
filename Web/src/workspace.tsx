@@ -253,6 +253,7 @@ export const Workspace = ({ id, path, readOnly, selected }: {
                 if (contents.data === data) {
                     return contents;
                 }
+                setErrors([]);
                 contents.stale = true;
                 return {
                     path,
@@ -263,7 +264,6 @@ export const Workspace = ({ id, path, readOnly, selected }: {
                     stale: false,
                 }
             });
-            setErrors([]);
         });
 
         let isFirstSet = true;
