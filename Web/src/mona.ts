@@ -23,7 +23,6 @@
 
 export const MonaInputPath = '/input';
 export const MonaOutputPath = '/output';
-const LibPath = `${MonaInputPath}/lib`;
 
 export interface MonaDirectoryContents {
     directories: string[]
@@ -62,16 +61,13 @@ export class MonaFileSystem {
 
     private static async buildFileSystem(): Promise<FileSystem> {
         // any-thing goes in this method, so be careful
-        const module = await (global as any).Module();
+        const module = await (global as any).MonaModule();
         const fs = module.FS;
         fs.mkdir(MonaInputPath);
         fs.mkdir(MonaOutputPath);
         const inputMount = fs.mount(module.IDBFS, {}, MonaInputPath);
         const outputMount = fs.mount(module.IDBFS, {}, MonaOutputPath);
         await new Promise<void>((resolve, reject) => fs.syncfs(true, (error: any) => error ? reject(error) : resolve()));
-        if (!fs.analyzePath(LibPath).exists) {
-            fs.mkdir(LibPath);
-        }
         const ensureModifiable = (path: string) => {
             if (path.startsWith(MonaOutputPath) && (path.length === MonaOutputPath.length || path[MonaOutputPath.length] === '/')) {
                 throw new Error(`Path '${path}' is not modifiable.`);
@@ -93,7 +89,7 @@ export class MonaFileSystem {
         };
     }
 
-    static isOutputPath(path: string): boolean {
+    private static isOutputPath(path: string): boolean {
         return path.startsWith(MonaOutputPath) && (path.length === MonaOutputPath.length || path[MonaOutputPath.length] === '/');
     }
 
@@ -191,7 +187,7 @@ export class MonaFileSystem {
     }
 
     static isSpecialDirectory(path: string): boolean {
-        return path === MonaInputPath || path === LibPath;
+        return path === MonaInputPath || path === MonaOutputPath;
     }
 
     static async isDirectory(path: string): Promise<boolean> {
@@ -283,8 +279,8 @@ export class MonaFileSystem {
 export interface MonaData {
     id: number
     dfa?: {
-        freeVariables: string[]
-        transitions: {
+        freeVariables?: string[]
+        transitions?: {
             [from: string]: {
                 [input: string]: string[]
             }
@@ -365,14 +361,14 @@ export class MonaRuntime {
         this._runListeners.delete(listener);
     }
 
-    static run(path: string): Promise<MonaData> {
+    static run(path: string, module: 'mona' | 'dfa2dot'): Promise<MonaData> {
         return new Promise<MonaData>((resolve, reject) => {
             const id = ++this._nextId;
             this._tasks.set(id, { resolve, reject });
             if (this._tasks.size === 1) {
                 this.notifyRunListeners(true);
             }
-            try { this._worker.postMessage({ id, path }); }
+            try { this._worker.postMessage({ id, path, module }); }
             catch (error) { this.finishTask(id, task => task.reject(error)); }
         });
     }

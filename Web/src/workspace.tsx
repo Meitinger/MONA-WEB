@@ -93,7 +93,7 @@ const callback = async (
                 return;
             }
             if (!contents.ran) {
-                contents.result = await MonaRuntime.run(contents.path);
+                contents.result = await MonaRuntime.run(contents.path, contents.data.startsWith('MONA DFA') ? 'dfa2dot' : 'mona');
                 contents.ran = true;
             }
         }
@@ -125,10 +125,14 @@ const WorkspaceContext = createContext({} as Context);
 
 const isCurrentTab = (context: Context, tab: Tab) => context.visible && (context.hasResult ? context.currentTab === tab : tab === 'Errors');
 
+const viewportHeightIfTab = (context: Context, tab: Tab) => isCurrentTab(context, tab)
+    ? { 'data-uk-height-viewport': `offset-top: true; offset-bottom: #tabs${context.id}` }
+    : {};
+
 const tabAttributes = (context: Context, tab: Tab) => ({
     id: `${tab.toLowerCase()}${context.id}`,
     hidden: !isCurrentTab(context, tab),
-    ...isCurrentTab(context, tab) && { 'data-uk-height-viewport': `offset-top: true; offset-bottom: #tabs${context.id}` }
+    ...viewportHeightIfTab(context, tab)
 });
 
 const TextArea = ({ tab, values }: {
@@ -162,7 +166,7 @@ export const Workspace = ({ id, path, readOnly, selected }: {
     const editorDiv = useRef<HTMLDivElement>(null);
     const graphDiv = useRef<HTMLDivElement>(null);
     const [errors, setErrors] = useState<string[]>([]);
-    const [currentTab, setCurrentTab] = useState<Tab>('Errors');
+    const [currentTab, setCurrentTab] = useState<Tab>('Graph');
     const [contents, setContents] = useState<Contents>({ path, data: '', saved: true, ran: true, result: null, stale: false });
     const [autoSave, setAutoSave] = useState(true);
     const [autoRun, setAutoRun] = useState(true);
@@ -240,22 +244,20 @@ export const Workspace = ({ id, path, readOnly, selected }: {
             readOnly: readOnly,
             automaticLayout: true
         });
-        if (!readOnly) {
-            editor.onDidChangeModelContent(e => {
-                setContents(contents => {
-                    contents.stale = true;
-                    return {
-                        path,
-                        data: editor.getValue(),
-                        saved: e.isFlush,
-                        ran: false,
-                        result: null,
-                        stale: false,
-                    }
-                });
-                setErrors([]);
+        editor.onDidChangeModelContent(e => {
+            setContents(contents => {
+                contents.stale = true;
+                return {
+                    path,
+                    data: editor.getValue(),
+                    saved: e.isFlush,
+                    ran: false,
+                    result: null,
+                    stale: false,
+                }
             });
-        }
+            setErrors([]);
+        });
 
         let isFirstSet = true;
         const setContentsAndClose = (contents: string | null) => {
@@ -282,7 +284,7 @@ export const Workspace = ({ id, path, readOnly, selected }: {
     return (
         <div className="uk-grid-divider uk-grid-small uk-flex-nowrap" data-uk-grid>
             <div className="uk-width-1-2">
-                <div ref={editorDiv} data-uk-height-viewport="offset-top: true; offset-bottom: true"></div>
+                <div ref={editorDiv} {...selected && { 'data-uk-height-viewport': "offset-top: true; offset-bottom: true" }}></div>
                 <nav className="uk-flex uk-flex-bottom uk-navbar-container" data-uk-navbar>
                     <div className="uk-navbar-left">
                         <div className="uk-navbar-item">
@@ -305,7 +307,7 @@ export const Workspace = ({ id, path, readOnly, selected }: {
                         <div className="uk-margin">
                             <input className="uk-range" type="range" min="1" max="10" step="0.1" value={scale} onChange={e => setScale(parseFloat(e.target.value))} />
                         </div>
-                        <div className="uk-panel uk-panel-scrollable" data-uk-height-viewport={`offset-top: true; offset-bottom: #tabs${context.id}`}>
+                        <div className="uk-panel uk-panel-scrollable" {...viewportHeightIfTab(context, 'Graph')}>
                             <div ref={graphDiv}></div>
                         </div>
                     </div>

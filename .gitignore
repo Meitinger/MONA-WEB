@@ -28,3 +28,5 @@ Lib/gta2dot
 /Web/public/static/js/editor.worker.js
 /Web/public/static/js/mona.js
 /Web/public/static/js/mona.wasm
+/Web/public/static/js/dfa2dot.js
+/Web/public/static/js/dfa2dot.wasm
