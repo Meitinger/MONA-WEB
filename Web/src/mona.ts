@@ -353,7 +353,7 @@ export class MonaRuntime {
         return this._tasks.size === 0;
     }
 
-    static run(path: string, module: 'mona' | 'dfa2dot'): Promise<MonaData> {
+    static run(path: string, module: 'mona' | 'dfa2dot' | 'gta2dot'): Promise<MonaData> {
         return new Promise<MonaData>((resolve, reject) => {
             const id = ++this._nextId;
             this._tasks.set(id, { resolve, reject });

@@ -93,7 +93,10 @@ const callback = async (
                 return;
             }
             if (!contents.ran) {
-                contents.result = await MonaRuntime.run(contents.path, contents.data.startsWith('MONA DFA') ? 'dfa2dot' : 'mona');
+                contents.result = await MonaRuntime.run(
+                    contents.path,
+                    contents.data.startsWith('MONA DFA') ? 'dfa2dot' : contents.data.startsWith('MONA GTA') ? 'gta2dot' : 'mona'
+                );
                 contents.ran = true;
             }
         }
