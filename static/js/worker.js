@@ -21,7 +21,7 @@
  * USA.
  */
 
-self.importScripts('./render.js', './mona.js', 'dfa2dot.js');
+self.importScripts('./render.js', './mona.js', 'dfa2dot.js', 'gta2dot.js');
 
 const InputPath = '/input';
 const OutputPath = '/output';
@@ -206,9 +206,9 @@ async function runMona(result, path) {
 }
 
 //execute dfa2dot
-async function runDfa2Dot(result, path) {
-    const TempFilePath = '/tmp/dfa2dot';
-    const dot = await run(Dfa2DotModule, [path, TempFilePath], TempFilePath);
+async function runA2Dot(result, module, path) {
+    const TempFilePath = '/tmp/dot';
+    const dot = await run(module, [path, TempFilePath], TempFilePath);
     result.dfa = { graph: render(dot.replace('orientation = landscape', ''), RenderOptions) };
 }
 
@@ -217,7 +217,8 @@ self.onmessage = async e => {
     try {
         switch (e.data.module) {
             case 'mona': await runMona(result, e.data.path); break;
-            case 'dfa2dot': await runDfa2Dot(result, e.data.path); break;
+            case 'dfa2dot': await runA2Dot(result, Dfa2DotModule, e.data.path); break;
+            case 'gta2dot': await runA2Dot(result, Gta2DotModule, e.data.path); break;
             default: throw new Error(`Unknown module: ${e.data.module}`);
         }
     }
