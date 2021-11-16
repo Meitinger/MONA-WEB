@@ -89,7 +89,7 @@ export const Tab = ({ id, path, selected, readOnly }: {
             <a href={id} onClick={e => { app.openTab(path, readOnly); e.preventDefault(); }}>
                 <span uk-icon="icon: file-text"></span>
                 <span className="uk-margin-small-left uk-margin-small-right" style={{ textTransform: 'none' }}>{path}{readOnly && ' (read-only)'}{deleted && ' (deleted)'}</span>
-                <button data-uk-close onClick={e => { app.closeTab(path); e.stopPropagation(); }}>
+                <button data-uk-close onClick={e => { app.closeTab(path); e.stopPropagation(); e.preventDefault(); }}>
                 </button>
             </a>
         </li>

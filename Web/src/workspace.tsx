@@ -245,13 +245,17 @@ export const Workspace = ({ id, path, readOnly, selected }: {
             automaticLayout: true
         });
         editor.onDidChangeModelContent(e => {
+            const data = editor.getValue();
             setContents(contents => {
+                if (contents.data === data) {
+                    return contents;
+                }
                 contents.stale = true;
                 return {
                     path,
-                    data: editor.getValue(),
-                    saved: readOnly || e.isFlush,
-                    ran: false,
+                    data,
+                    saved: e.isFlush,
+                    ran: data.length === 0,
                     result: null,
                     stale: false,
                 }

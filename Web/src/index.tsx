@@ -24,6 +24,7 @@
 import { createContext, useMemo, useReducer } from 'react';
 import { render } from 'react-dom';
 import { Browser } from './browser';
+import { MonaFileSystem, MonaInputPath, MonaOutputPath } from './mona';
 import { Tab, TabsHandler, Tabs } from './tabs';
 import './uikitloader.js';
 import { Workspace } from './workspace';
@@ -33,13 +34,30 @@ export const AppContext = createContext({} as {
     closeTab: (path: string) => void
 });
 
+const createSample = async (tabHandler: TabsHandler) => {
+    const isDirectoryEmpty = async (path: string) => {
+        const contents = await MonaFileSystem.enumDirectory(path);
+        return contents.directories.length === 0 && contents.files.length === 0;
+    };
+
+    if (await isDirectoryEmpty(MonaInputPath) && await isDirectoryEmpty(MonaOutputPath)) {
+        const exampleFileName = `${MonaInputPath}/example`;
+        await MonaFileSystem.writeFile(exampleFileName, '# As an example, you could try:\nvar2 P,Q;\nP\\Q = {0,4} union {1,2};\n');
+        tabHandler.openTab(exampleFileName, false);
+    }
+};
+
 const App = () => {
     const [tabs, setTabs] = useReducer((tabs: Tabs, action: (tabs: Tabs) => Tabs) => {
         const result = action(tabs);
         window.localStorage.setItem('tabs', JSON.stringify(result));
         return result;
     }, JSON.parse(window.localStorage.getItem('tabs') ?? '{}') as Tabs);
-    const tabHandler = useMemo(() => new TabsHandler(setTabs), []);
+    const tabHandler = useMemo(() => {
+        const handler = new TabsHandler(setTabs);
+        createSample(handler);
+        return handler;
+    }, []);
 
     return (
         <AppContext.Provider value={tabHandler}>
