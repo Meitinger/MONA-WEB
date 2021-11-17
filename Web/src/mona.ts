@@ -266,6 +266,7 @@ export class MonaFileSystem {
 
 export interface MonaData {
     id: number
+    exitCode?: number
     dfa?: {
         freeVariables?: string[]
         transitions?: {
@@ -284,6 +285,7 @@ export interface MonaData {
     timings?: {
         [label: string]: number
     }
+    error?: string
 }
 
 export type MonaRunListener = (isRunning: boolean) => void
@@ -303,15 +305,10 @@ export class MonaRuntime {
         const worker = new Worker('/MONA-WEB/static/js/worker.js', { name: 'Mona' });
         worker.onerror = e => this.stop(`Error in worker: ${e.message} (${e.lineno}:${e.colno})`);
         worker.onmessageerror = e => this.finishTask(e.data.id, task => task.reject('Failed to deserialize worker message.'));
-        worker.onmessage = e => this.finishTask(e.data.id, task => {
-            MonaFileSystem.refresh().catch(error => console.trace(error));
-            if (e.data.error) {
-                task.reject(e.data.error);
-            }
-            else {
-                task.resolve(e.data);
-            }
-        });
+        worker.onmessage = e => {
+            MonaFileSystem.refresh().catch(console.trace);
+            this.finishTask(e.data.id, task => e.data.error && !e.data.exitCode ? task.reject(e.data.error) : task.resolve(e.data));
+        };
         return worker;
     }
 

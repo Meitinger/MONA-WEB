@@ -93,11 +93,17 @@ const callback = async (
                 return;
             }
             if (!contents.ran) {
-                contents.result = await MonaRuntime.run(
+                const result = await MonaRuntime.run(
                     contents.path,
                     contents.data.startsWith('MONA DFA') ? 'dfa2dot' : contents.data.startsWith('MONA GTA') ? 'gta2dot' : 'mona'
                 );
                 contents.ran = true;
+                if (result.exitCode === 0) {
+                    contents.result = result;
+                }
+                else {
+                    handleError(result.error ? result.error : `Program exited with code ${result.exitCode}.`);
+                }
             }
         }
         catch (error) {
@@ -248,7 +254,7 @@ export const Workspace = ({ id, path, readOnly, selected }: {
             automaticLayout: true
         });
         editor.onDidChangeModelContent(e => {
-            const data = editor.getValue();
+            const data = editor.getValue({ preserveBOM: false, lineEnding: '\n' });
             setContents(contents => {
                 if (contents.data === data) {
                     return contents;
