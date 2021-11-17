@@ -4,8 +4,8 @@
     "static/js/0.2b698478.chunk.js.map": "/MONA-WEB/static/js/0.2b698478.chunk.js.map",
     "static/js/1.96340145.chunk.js": "/MONA-WEB/static/js/1.96340145.chunk.js",
     "static/js/1.96340145.chunk.js.map": "/MONA-WEB/static/js/1.96340145.chunk.js.map",
-    "main.js": "/MONA-WEB/static/js/main.5ffd5cd8.chunk.js",
-    "main.js.map": "/MONA-WEB/static/js/main.5ffd5cd8.chunk.js.map",
+    "main.js": "/MONA-WEB/static/js/main.bca125ba.chunk.js",
+    "main.js.map": "/MONA-WEB/static/js/main.bca125ba.chunk.js.map",
     "runtime-main.js": "/MONA-WEB/static/js/runtime-main.046d9b9c.js",
     "runtime-main.js.map": "/MONA-WEB/static/js/runtime-main.046d9b9c.js.map",
     "static/css/4.1bd0a375.chunk.css": "/MONA-WEB/static/css/4.1bd0a375.chunk.css",
@@ -177,6 +177,6 @@
     "static/js/runtime-main.046d9b9c.js",
     "static/css/4.1bd0a375.chunk.css",
     "static/js/4.3e471e97.chunk.js",
-    "static/js/main.5ffd5cd8.chunk.js"
+    "static/js/main.bca125ba.chunk.js"
   ]
 }

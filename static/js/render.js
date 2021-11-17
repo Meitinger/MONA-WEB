@@ -31,7 +31,7 @@ var gb=[c4,FL];var hb=[d4,RF,QF,SF,TF,d4,d4,d4];var ib=[e4,ML];var jb=[f4,eq,EH,
 
 global.render = function(src, options) {
   const instance = Module({
-    TOTAL_MEMORY: 64 * 1024 * 1024
+    TOTAL_MEMORY: 32 * 1024 * 1024
   });
 
   var i;

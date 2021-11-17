@@ -27,7 +27,7 @@ const InputPath = '/input';
 const OutputPath = '/output';
 
 // run a emscripten module and capture its output
-async function run(moduleDefinition, args, returnFile) {
+async function run(moduleDefinition, args, result, returnFile) {
     // load the module
     const stdout = [];
     const stderr = [];
@@ -48,7 +48,7 @@ async function run(moduleDefinition, args, returnFile) {
     await sync(OutputDir, true);
 
     // run the module and store /output to IndexedDB
-    if (module.callMain(args) !== 0) {
+    if ((result.exitCode = module.callMain(args)) !== 0) {
         throw new Error(stderr.concat(stdout).join('\n'));
     }
     await sync(OutputDir, false);
@@ -195,7 +195,7 @@ function buildGraph(dfa) {
 
 // execute mona
 async function runMona(result, path) {
-    const stdout = await run(MonaModule, ['-q', '-w', '-t', path], null);
+    const stdout = await run(MonaModule, ['-q', '-w', '-t', path], result, null);
     if (stdout.reduce((state, line) => parseLine(result, state, line), State.Unknown) !== State.Timings) {
         throw new Error(`Invalid output:\n${stdout.join('\n')}`);
     }
@@ -208,7 +208,7 @@ async function runMona(result, path) {
 //execute dfa2dot
 async function runA2Dot(result, module, path) {
     const TempFilePath = '/tmp/dot';
-    const dot = await run(module, [path, TempFilePath], TempFilePath);
+    const dot = await run(module, [path, TempFilePath], result, TempFilePath);
     result.dfa = { graph: render(dot.replace('orientation = landscape', ''), RenderOptions) };
 }
 
